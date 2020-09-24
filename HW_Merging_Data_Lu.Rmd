@@ -1,0 +1,121 @@
+---
+title: "HW_Merging_Data"
+author: "Hanna Lu"
+date: "9/17/2020"
+output: html_document
+---
+
+1. Set working directory and Load datasets:
+```{r}
+getwd()
+setwd("C:/Users/520ha/Desktop/Chapman/2020 Fall/CS 614/Assignments")
+```
+
+2. Read the data into your workspace
+```{r}
+cca = read.csv('Data/countrycharsA.csv')
+ccb = read.csv('Data/countrycharsB.csv')
+gdp = read.csv('Data/gdp.csv')
+load("Data/map.coords.RData")
+```
+
+3. Use the str() command to examine the characteristics of each of the three databases. 
+```{r}
+str(cca)
+str(ccb)
+str(gdp)
+```
+
+4. Append ccA to ccB to make one large data frame. Reexamine the output with str()
+```{r}
+ccab = rbind(cca, ccb)
+str(ccab)
+```
+
+5. Append the gdpdata to the data frame you created in Task 4. Be careful here and  make sure you examine the structure of the resulting data frame to ensure things are correct. Examine the output with str().
+
+```{r}
+ccab_gdp = cbind(ccab, gdp)
+str(ccab_gdp)
+```
+
+6. What variable type is the country variable in both your appended and coordinates data frames? 
+
+```{r}
+class(ccab_gdp$country)
+class(coords$country)
+```
+
+The variable type of the country variable is character in both data frames.
+
+7. How many times after 1980 did a country have gdp<20000. To do this, consider subsetting to create a new data frame and counting the number of rows.    
+
+```{r}
+low_gdp = ccab_gdp[ccab_gdp$gdp<20000,]
+gdp_1980 = low_gdp[low_gdp$year > 1980,]
+nrow(gdp_1980)
+```
+The above results show that a country have gdp<20,000 for 687 times after 1980.
+
+
+### Assignmemnt - Merging Data and Factor Vairables
+
+
+1. Merge the data frame from Task 5 with coords via three different techniques: inner, right, and left merge. Compare the dimensions of each of the resulting data frame and explain any differences you see. 
+
+```{r}
+inner = merge(ccab_gdp, coords, by = 'country', all=F)
+right = merge(ccab_gdp, coords, by = 'country', all.y = T)
+left = merge(ccab_gdp, coords, by = 'country', all.x = T)
+dim(inner)
+dim(right)
+dim(left)
+```
+The dimensions show that the inner join has the least samples because it's the intersection of the two data frames, the right join has the same number of samples as in the coords data frame, and the left join has the same number of samples as in the ccab_gdp data frame. They all have the same number of columns.
+
+2. Suppose a researcher has a hypothesis that there is a relationship between gdp and distance from the equator, i.e. latitude. To explore this, the researcher would like to break the gdp into quartiles and then look at the mean latitude (in absolute value) for each quartile. To do this, perform the following tasks:
+a.) Using the data from the inner merge, use the quantile() function to determine the quartiles of gdp.
+
+```{r}
+require(dplyr)
+qtl = quantile(inner$gdp, probs = 0:4/4)
+```
+
+b.) Using the findInterval() function and your result from above, create a new factor variable in the data set called gdp.q based on the quartile that the a given observation’s gdp value lies in. 
+
+```{r}
+inner = inner %>%
+  mutate(gdp.q = as.factor(findInterval(gdp, qtl, all.inside = T)))
+```
+
+Print a table of the levels of this variable. 
+```{r}
+table(inner$gdp.q)
+```
+
+Does your function seem to be working? How can you tell?
+
+```{r}
+inner %>%
+  group_by(gdp.q) %>%
+  summarise(mean(gdp), .groups = 'drop')
+```
+
+It shows that the first quartile has the lowest GDP, and the fourth quartile has the highest GDP. It makes more sense if we reverse the order of the quartiles.
+  
+c.) Reverse the order of the factor levels for gdp.q and reprint the table. 
+
+```{r}
+levels(inner$gdp.q) = c('4','3','2','1')
+table(inner$gdp.q)
+```
+
+d.) Find the mean latitude (in absolute value) for each quartile. Does there seem to be a difference?
+
+```{r}
+inner %>%
+  group_by(gdp.q) %>%
+  summarise(mean(abs(lat)),nobs=n(),.groups = 'drop')
+```
+
+The results show that the first and fourth quartiles have a lower mean absolute latitude, and the second and third quartiles have a higher mean absolute latitude. This suggests that the countries with the highest GDP and the countries with the lowest GDP are closer to the equator than countries with a GDP inbetween.
